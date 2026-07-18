@@ -1,0 +1,85 @@
+{
+    "app_title": "FreeMoCap",
+    "language_label": "EN",
+
+    "mode_selector_title": "Capture Mode",
+    "mode_selector_subtitle": "Choose how many actors to record in this session",
+
+    "single_actor_tile": "Single Actor",
+    "single_actor_badge": "",
+    "single_actor_desc": "Stable, tested. Recommended for most scenes.",
+    "single_actor_info": "",
+
+    "dual_actor_tile": "Two Actors",
+    "dual_actor_badge": "BETA",
+    "dual_actor_desc": "Experimental. Requires manual setup and careful result review.",
+    "dual_actor_info": "Two-actor mode uses cross-camera person association which is new and less tested. Accuracy depends on camera placement, lighting contrast between actors, and minimal occlusion. Results should be reviewed in the diagnostics screen before export.",
+
+    "btn_start": "Start Recording",
+    "btn_back": "Back",
+
+    "single_actor_settings_title": "Single Actor Settings",
+    "single_actor_settings_desc": "Standard recording with one person. All settings inherited from FreeMoCap defaults.",
+
+    "dual_actor_settings_title": "Two Actors Settings",
+
+    "actor_count_label": "Number of actors",
+    "actor_count_2": "2",
+    "actor_count_3": "3",
+    "actor_count_soon": "Coming soon",
+
+    "contact_expected_label": "Physical contact expected between actors",
+    "contact_expected_desc": "Enables Interaction Validator. Recommends separate pickup for critical contact moments.",
+    "contact_expected_warning": "When actors make physical contact, cross-camera association may produce identity swaps. Consider recording critical contact scenes separately.",
+
+    "live_indicator_label": "Cameras seeing both actors: {seen} of {total}",
+
+    "advanced_settings_show": "Show advanced settings",
+    "advanced_settings_hide": "Hide advanced settings",
+
+    "association_threshold_label": "Association confidence threshold",
+    "association_threshold_stricter": "Stricter",
+    "association_threshold_looser": "Looser",
+    "association_threshold_desc": "How strictly cameras must agree on person identity. Stricter = fewer false matches but may drop uncertain frames.",
+
+    "tracking_threshold_label": "Identity tracking speed threshold",
+    "tracking_threshold_stricter": "Stricter",
+    "tracking_threshold_looser": "Looser",
+    "tracking_threshold_desc": "How fast an identity can change between frames. Stricter = smoother tracks but may fail during fast motion.",
+
+    "shared_floor_label": "Shared floor plane for both actors",
+    "shared_floor_desc": "Assumes both actors stand on the same ground plane. Enable for typical indoor scenes.",
+
+    "btn_restore_defaults": "Restore defaults",
+
+    "btn_continue": "Continue to Recording",
+    "btn_record": "Start Recording",
+
+    "live_feedback_title": "Recording in Progress",
+
+    "actor_label": "Actor {id}",
+    "matching_confidence_label": "Cross-camera matching confidence",
+    "confidence_high": "High",
+    "confidence_medium": "Medium",
+    "confidence_low": "Low",
+
+    "identity_swap_warning": "Identity swap detected! Actor IDs may have switched between frames.",
+
+    "diagnostics_title": "Recording Diagnostics",
+
+    "metric_confident_frames": "Frames with confident association",
+    "metric_low_confidence_frames": "Frames with low confidence",
+    "metric_identity_swaps": "Identity swap events",
+    "metric_total_frames": "Total frames",
+
+    "problems_title": "Problem Timestamps",
+    "problems_empty": "No problems detected. Data looks clean.",
+
+    "btn_export": "Looks good -> Export",
+    "btn_fix_issues": "Issues found -> What can I do",
+    "btn_reprocess": "Reprocess with different settings",
+
+    "tooltip_export": "Export the processed data to your chosen format",
+    "tooltip_fix_issues": "View suggestions for improving data quality",
+    "tooltip_reprocess": "Go back and adjust thresholds, then reprocess without re-recording"
+}
