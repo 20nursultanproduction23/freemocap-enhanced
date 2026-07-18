@@ -143,8 +143,40 @@ def test_03_real_data_detection():
     return results
 
 
-def test_04_detection_rate():
-    """Test 4: Detection rate ≥90% across multiple frames (Cam1, first 30 frames)."""
+def _print_frame_table(all_detections, label=""):
+    """Print per-frame detection table. Standard format for all Stage tests."""
+    if label:
+        print(f"\n  Per-frame table ({label}):")
+    print(f"  {'Frame':>6} | {'Persons':>7} | {'Confidences'}")
+    print(f"  {'-'*6}-+-{'-'*7}-+-{'-'*40}")
+    for i, frame_dets in enumerate(all_detections):
+        n = len(frame_dets)
+        confs = ", ".join(f"{d.confidence:.3f}" for d in frame_dets)
+        print(f"  {i:>6} | {n:>7} | {confs}")
+
+
+def _save_frame_table_json(filepath, all_detections, test_name):
+    """Save per-frame detection table as JSON for reproducibility."""
+    rows = []
+    for i, frame_dets in enumerate(all_detections):
+        rows.append({
+            "frame": i,
+            "num_persons": len(frame_dets),
+            "persons": [d.to_dict() for d in frame_dets],
+        })
+    data = {"test": test_name, "frames": rows}
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2, default=str)
+    print(f"  Table saved to: {filepath}")
+
+
+def test_04_per_frame_detection():
+    """Test 4: Per-frame detection table (Cam1, frames 0-29).
+
+    Prints a table showing exactly how many persons are detected in each
+    frame with confidence values. This catches issues that aggregate metrics
+    like 'detection rate' would mask (e.g., 100% rate but wrong person count).
+    """
     videos = sorted([
         os.path.join(VIDEO_DIR, f)
         for f in os.listdir(VIDEO_DIR) if f.endswith(".mp4")
@@ -157,17 +189,29 @@ def test_04_detection_rate():
     detector = MultiPersonDetector(device="cpu", mode="balanced")
 
     all_dets = detector.detect_video(video_path, frame_range=(0, 29))
+
+    _print_frame_table(all_dets, label="Cam1 frames 0-29")
+    _save_frame_table_json(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_results_stage1_frame_table.json"),
+        all_dets,
+        "test_04_per_frame_detection",
+    )
+
+    # Per-frame assertions: every frame must have >= 1 detection
+    failures = []
+    for i, frame_dets in enumerate(all_dets):
+        if len(frame_dets) < 1:
+            failures.append(f"Frame {i}: {len(frame_dets)} persons (expected >= 1)")
+
+    assert len(failures) == 0, "Per-frame failures:\n" + "\n".join(failures)
+
+    # Summary stats (for logging only — NOT the primary assertion)
     stats = aggregate_detections(all_dets, min_confidence=0.3)
+    print(f"\n  Summary: {stats['frames_with_detections']}/{stats['total_frames']} frames with detections, "
+          f"mean={stats['mean_persons']:.2f} persons/frame")
 
-    print(f"  Frames: {stats['total_frames']}, "
-          f"With detections: {stats['frames_with_detections']}, "
-          f"Rate: {stats['detection_rate']:.1%}")
-
-    assert stats["detection_rate"] >= 0.9, \
-        f"Detection rate {stats['detection_rate']:.1%} < 90%"
-
-    print("  PASS: detection rate >=90%")
-    return stats
+    print("  PASS: per-frame detection (all frames >= 1 person)")
+    return {"all_dets": all_dets, "stats": stats}
 
 
 def test_05_synthetic_multi_person():
@@ -278,7 +322,7 @@ def run_all_tests():
         ("01 Imports & Dataclass", test_01_imports_and_dataclass),
         ("02 Output Format", test_02_output_format),
         ("03 Real Data Detection", test_03_real_data_detection),
-        ("04 Detection Rate", test_04_detection_rate),
+        ("04 Per-Frame Detection Table", test_04_per_frame_detection),
         ("05 Synthetic Multi-Person", test_05_synthetic_multi_person),
         ("06 No Detection Edge Case", test_06_no_detection_edge_case),
         ("07 Aggregate Detections", test_07_aggregate_detections),
