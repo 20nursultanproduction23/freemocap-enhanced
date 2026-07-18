@@ -33,3 +33,6 @@ test_rtmpose_video.py
 # OS
 Thumbs.db
 .DS_Store
+
+# Research repos (read-only reference, not part of pipeline)
+research/
