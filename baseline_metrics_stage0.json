@@ -1,6 +1,6 @@
 {
   "baseline_date": "2026-07-18",
-  "pipeline_version": "3.2",
+  "pipeline_version": "3.1-stable",
   "branch": "multi-actor-support",
   "commit": "96f6075",
   "test_data": "D:\\freemocap_test_data\\freemocap_test_data\\",

@@ -93,7 +93,7 @@ def run_full_pipeline(
     print("=" * 60)
 
     start_time = time.time()
-    report = {"stages": {}, "pipeline_version": "3.2"}
+    report = {"stages": {}, "pipeline_version": "3.1-stable"}
 
     num_frames = skeleton_data.shape[0]
     print(f"\n  Input: {num_frames} frames, {skeleton_data.shape[1]} tracked points")
