@@ -7,6 +7,9 @@ build/
 .eggs/
 *.egg
 
+# Generated markers (use tools/generate_actor_markers.py to create)
+markers/
+
 # Debug images
 debug_frame_*.png
 
