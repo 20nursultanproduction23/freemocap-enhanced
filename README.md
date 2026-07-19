@@ -33,7 +33,6 @@ This is an **add-on layer** for FreeMoCap v1.8.x that adds:
 ### GUI Enhancements
 - **Mode selector**: Single Actor / Dual Actor
 - **Bilingual interface** (English / Russian)
-- **Custom home screen logo** (auto-resize with window)
 - **Dual-actor settings** with ArUco marker preview
 
 ---
@@ -71,7 +70,6 @@ This project was developed and tested primarily using:
 - ArUco marker generation
 - All 102 automated tests pass
 - Bilingual UI (EN/RU) with language toggle
-- Custom logo auto-resizes with window
 
 ### What Happens Next
 
@@ -150,7 +148,6 @@ See [INSTALL[ENG].md](INSTALL%5BENG%5D.md) for detailed installation instruction
 ```
 freemocap-enhanced/
 ├── run_freemocap_enhanced.py          Main launcher
-├── FREEMOCAP-BETA.png                Logo
 ├── requirements.txt                  Dependencies
 │
 ├── multiperson_detector.py           RTMDet + RTMPose detection
