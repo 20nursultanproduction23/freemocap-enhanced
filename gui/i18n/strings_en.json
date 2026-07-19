@@ -32,8 +32,6 @@
     "contact_expected_desc": "Enables Interaction Validator. Recommends separate pickup for critical contact moments.",
     "contact_expected_warning": "When actors make physical contact, cross-camera association may produce identity swaps. Consider recording critical contact scenes separately.",
 
-    "live_indicator_label": "Cameras seeing both actors: {seen} of {total}",
-
     "advanced_settings_show": "Show advanced settings",
     "advanced_settings_hide": "Hide advanced settings",
 
@@ -50,36 +48,81 @@
     "shared_floor_label": "Shared floor plane for both actors",
     "shared_floor_desc": "Assumes both actors stand on the same ground plane. Enable for typical indoor scenes.",
 
+    "aruco_fallback_label": "Use ArUco markers to distinguish actors",
+    "aruco_fallback_desc": "Print ArUco markers and attach to each actor's clothing. When enabled, markers override geometric identity tracking during physical contact scenes.",
+    "aruco_generate_btn": "Generate Markers",
+    "aruco_download_btn": "Download PNGs",
+    "aruco_print_btn": "Print",
+    "aruco_download_saved": "Saved to Downloads folder",
+
     "btn_restore_defaults": "Restore defaults",
 
     "btn_continue": "Continue to Recording",
     "btn_record": "Start Recording",
 
     "live_feedback_title": "Recording in Progress",
+    "btn_stop_recording": "Stop Recording",
+    "recording_indicator": "Recording...",
+    "frame_counter": "Frame {frame}",
 
     "actor_label": "Actor {id}",
+    "actor_label_short": "Act {id}",
     "matching_confidence_label": "Cross-camera matching confidence",
     "confidence_high": "High",
     "confidence_medium": "Medium",
     "confidence_low": "Low",
 
     "identity_swap_warning": "Identity swap detected! Actor IDs may have switched between frames.",
+    "swap_warning_detail": "This usually happens when actors cross paths or are briefly occluded. Check the diagnostics screen after recording.",
 
     "diagnostics_title": "Recording Diagnostics",
 
-    "metric_confident_frames": "Frames with confident association",
-    "metric_low_confidence_frames": "Frames with low confidence",
-    "metric_identity_swaps": "Identity swap events",
+    "metric_confident_frames": "Confident frames",
+    "metric_low_confidence_frames": "Low confidence",
+    "metric_identity_swaps": "Identity swaps",
     "metric_total_frames": "Total frames",
+    "metric_confident_pct": "{pct}%",
+    "quality_label": "Quality",
+    "quality_excellent": "Excellent",
+    "quality_good": "Good",
+    "quality_fair": "Fair",
+    "quality_poor": "Poor",
 
     "problems_title": "Problem Timestamps",
     "problems_empty": "No problems detected. Data looks clean.",
+    "problem_identity_swap": "Identity swap between Actor {a1} and Actor {a2}",
+    "problem_low_confidence": "Low confidence association",
+    "problem_tracking_gap": "Tracking gap — actor not detected for {n} frames",
 
-    "btn_export": "Looks good -> Export",
-    "btn_fix_issues": "Issues found -> What can I do",
+    "btn_export": "Looks good \u2192 Export",
+    "btn_fix_issues": "Issues found \u2192 What can I do",
     "btn_reprocess": "Reprocess with different settings",
+    "btn_back_to_feedback": "Back to Recording",
+    "btn_close": "Close",
+
+    "fix_title": "How to improve your data",
+    "fix_identity_swap": "Identity swaps happen when actors cross paths or are occluded from multiple cameras. To reduce swaps:\n\u2022 Increase the tracking speed threshold (stricter)\n\u2022 Place cameras at different angles around the scene\n\u2022 Ensure good lighting contrast between actors",
+    "fix_low_confidence": "Low confidence frames occur when cameras disagree about person identity. To improve:\n\u2022 Increase the association confidence threshold (stricter)\n\u2022 Reduce occlusion by adjusting camera positions\n\u2022 Ensure all cameras can see both actors",
+    "fix_tracking_gap": "Tracking gaps happen when an actor is not detected by enough cameras. To fix:\n\u2022 Ensure the actor is visible in at least 3 cameras\n\u2022 Avoid wearing colors similar to the background\n\u2022 Increase lighting in the capture area",
+    "fix_general": "General tips:\n\u2022 Re-record with different thresholds using 'Reprocess'\n\u2022 For critical scenes, consider recording single-actor passes\n\u2022 Check camera calibration before recording",
 
     "tooltip_export": "Export the processed data to your chosen format",
     "tooltip_fix_issues": "View suggestions for improving data quality",
-    "tooltip_reprocess": "Go back and adjust thresholds, then reprocess without re-recording"
+    "tooltip_reprocess": "Go back and adjust thresholds, then reprocess without re-recording",
+    "tooltip_back_to_feedback": "Return to the recording screen",
+
+    "review_mode_title": "Recording Review",
+    "review_mode_subtitle": "Drag the slider to review recorded frames with bounding boxes",
+    "review_frame_of": "Frame {frame} of {total}",
+    "review_prev": "< Prev",
+    "review_next": "Next >",
+    "review_no_data": "No recorded data available yet. Complete a recording to review frames.",
+
+    "export_success_title": "Export Complete",
+    "export_success_desc": "Data exported to:\n{path}",
+    "export_error": "Export failed: {error}",
+    "export_saving": "Saving...",
+    "processing_data": "Processing recording data...",
+    "data_loaded": "Data loaded successfully",
+    "data_load_error": "Failed to load recording data: {error}"
 }

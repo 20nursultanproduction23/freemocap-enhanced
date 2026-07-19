@@ -38,7 +38,12 @@ class SingleActorSettings(QWidget):
         self._connect_signals()
         self._refresh_text()
 
+    @property
+    def settings(self) -> dict:
+        return {"mode": "single"}
+
     def _setup_ui(self):
+        self.setStyleSheet(f"background-color: {COLOR_BG};")
         root = QVBoxLayout(self)
         root.setContentsMargins(40, 30, 40, 30)
         root.setSpacing(20)
@@ -68,7 +73,7 @@ class SingleActorSettings(QWidget):
 
         self._title_label = QLabel()
         self._title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        self._title_label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY};")
+        self._title_label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; background-color: {COLOR_BG};")
         top_row.addWidget(self._title_label, 1)
         root.addLayout(top_row)
 
@@ -87,7 +92,7 @@ class SingleActorSettings(QWidget):
 
         self._desc_label = QLabel()
         self._desc_label.setWordWrap(True)
-        self._desc_label.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 14px; background: transparent;")
+        self._desc_label.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 14px; background-color: #2d2d2d;")
         card_layout.addWidget(self._desc_label)
 
         root.addWidget(card)

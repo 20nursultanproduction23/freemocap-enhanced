@@ -7,22 +7,34 @@ build/
 .eggs/
 *.egg
 
-# Test output files (keep test scripts, not results)
-test_results.json
-test_results_15_20.json
-test_results_v3_2.json
-test_results_v3_2_detailed.json
-pipeline_v3_2_real_data_report.json
+# Debug images
+debug_frame_*.png
 
-# Debug scripts (not part of core pipeline)
+# Error logs
+_last_error.txt
+
+# Test output files (keep test scripts, not results)
+test_results*.json
+baseline_metrics_*.json
+pipeline_v3_2_real_data_report.json
+results_stress_test_*.json
+
+# Utility/debug scripts (not part of core pipeline)
 debug_rtmpose.py
 debug_rtmpose_v2.py
 run_pipeline_v3_2.py
-test_pipeline.py
-test_pipeline_on_rtmpose.py
-test_real_data.py
-test_rtmpose_all_cameras.py
-test_rtmpose_video.py
+check_*.py
+eval_*.py
+generate_synthetic.py
+run_full_eval.py
+run_gui_demo.py
+merge_stress_results.py
+run_two_person_test.py
+run_two_person_test_v2.py
+threshold_sweep.py
+write_section13*.py
+stress_test_download.py
+requirements_full.txt
 
 # IDE
 .vscode/

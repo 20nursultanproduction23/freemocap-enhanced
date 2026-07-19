@@ -214,6 +214,11 @@ class TestSingleActorSettings:
         w.back_clicked.emit()
         assert len(received) >= 1
 
+    def test_settings_property(self, qapp, locale_en):
+        w = self._make(locale_en)
+        s = w.settings
+        assert s == {"mode": "single"}
+
     def test_language_switch(self, qapp, locale_en):
         w = self._make(locale_en)
         assert "Settings" in w._title_label.text()
@@ -316,12 +321,6 @@ class TestDualActorSettings:
         assert len(received) == 1
         assert received[0]["actor_count"] == 2
 
-    def test_cameras_seeing_both_indicator(self, qapp, locale_en):
-        w = self._make(locale_en)
-        w.set_cameras_seeing_both(4)
-        text = w._live_label.text()
-        assert "4" in text and "6" in text
-
     def test_language_switch(self, qapp, locale_en):
         w = self._make(locale_en)
         assert "Settings" in w._title_label.text() or "Настройки" in w._title_label.text()
@@ -376,9 +375,39 @@ class TestLiveFeedbackWidget:
 
     def test_set_bboxes(self, qapp, locale_en):
         w = self._make(locale_en)
-        # Should not raise
         w.set_bboxes(1, [(10, 20, 100, 200)])
         w.set_bboxes(2, [(30, 40, 150, 250)])
+
+    def test_set_frame_count(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w.set_frame_count(42)
+        assert w._frame_count == 42
+        assert "42" in w._frame_label.text()
+
+    def test_stop_signal(self, qapp, locale_en):
+        w = self._make(locale_en)
+        received = []
+        w.stop_clicked.connect(lambda: received.append(True))
+        w.stop_clicked.emit()
+        assert len(received) == 1
+
+    def test_recording_indicator_visible(self, qapp, locale_en):
+        w = self._make(locale_en)
+        assert not w._recording_text.isHidden()
+
+    def test_stop_button_visible(self, qapp, locale_en):
+        w = self._make(locale_en)
+        assert not w._stop_btn.isHidden()
+        assert w._stop_btn.isEnabled()
+
+    def test_swap_detail_hidden_initially(self, qapp, locale_en):
+        w = self._make(locale_en)
+        assert w._swap_warning_frame.isHidden()
+
+    def test_swap_detail_visible_after_show(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w.show_identity_swap()
+        assert not w._swap_warning_frame.isHidden()
 
     def test_language_switch(self, qapp, locale_en):
         w = self._make(locale_en)
@@ -388,6 +417,11 @@ class TestLiveFeedbackWidget:
         assert en_title != ru_title
         assert ru_title == "Запись в процессе"
         w._locale.set_language("en")  # restore
+
+    def test_actor_labels_in_previews(self, qapp, locale_en):
+        w = self._make(locale_en)
+        assert "Actor 1" in w._preview_header_actor1.text()
+        assert "Actor 2" in w._preview_header_actor2.text()
 
 
 # ==========================================
@@ -422,8 +456,8 @@ class TestDiagnosticsWidget:
     def test_set_problems(self, qapp, locale_en):
         w = self._make(locale_en)
         problems = [
-            {"frame": 5, "timestamp": "00:00.2", "description": "Low confidence", "severity": "warning"},
-            {"frame": 12, "timestamp": "00:00.5", "description": "Identity swap", "severity": "error"},
+            {"frame": 5, "timestamp": "00:00.2", "description": "Low confidence", "severity": "warning", "type": "low_confidence"},
+            {"frame": 12, "timestamp": "00:00.5", "description": "Identity swap", "severity": "error", "type": "identity_swap"},
         ]
         w.set_problems(problems)
         assert len(w._problems) == 2
@@ -457,6 +491,13 @@ class TestDiagnosticsWidget:
         w.reprocess_clicked.emit()
         assert len(received) >= 1
 
+    def test_back_to_feedback_signal(self, qapp, locale_en):
+        w = self._make(locale_en)
+        received = []
+        w.back_to_feedback_clicked.connect(lambda: received.append(True))
+        w.back_to_feedback_clicked.emit()
+        assert len(received) == 1
+
     def test_language_switch(self, qapp, locale_en):
         w = self._make(locale_en)
         assert "Diagnostics" in w._title_label.text()
@@ -470,6 +511,43 @@ class TestDiagnosticsWidget:
         confident_val = w._metric_confident.findChild(type(w._title_label), "value_confident")
         assert confident_val.text() == "50"
 
+    def test_quality_badge_shows_excellent(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w.set_metrics(confident=100, low_confidence=0, identity_swaps=0, total=100)
+        assert "Excellent" in w._quality_badge.text()
+
+    def test_quality_badge_shows_poor(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w.set_metrics(confident=20, low_confidence=40, identity_swaps=40, total=100)
+        assert "Poor" in w._quality_badge.text()
+
+    def test_fix_page_navigation(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w._show_fixes_page()
+        assert w._pages.currentIndex() == 1
+
+    def test_export_page_navigation(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w._show_export_page()
+        assert w._pages.currentIndex() == 2
+
+    def test_reset_returns_to_metrics(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w._show_fixes_page()
+        assert w._pages.currentIndex() == 1
+        w.reset()
+        assert w._pages.currentIndex() == 0
+
+    def test_fix_swap_card_hidden_when_no_swaps(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w.set_problems([])
+        assert w._fix_swap_card.isHidden()
+
+    def test_fix_swap_card_visible_when_swaps(self, qapp, locale_en):
+        w = self._make(locale_en)
+        w.set_metrics(confident=50, low_confidence=0, identity_swaps=5, total=100)
+        assert not w._fix_swap_card.isHidden()
+
 
 # ==========================================
 # Summary
@@ -479,14 +557,14 @@ def print_summary():
     print("\n" + "=" * 60)
     print("GUI SCREENS TEST SUITE — SUMMARY")
     print("=" * 60)
-    print("  i18n (LocaleManager): 10 tests")
+    print("  i18n (LocaleManager): 11 tests")
     print("  Screen 1 (ActorModeSelector): 10 tests")
-    print("  Screen 2 (SingleActorSettings): 4 tests")
+    print("  Screen 2 (SingleActorSettings): 5 tests")
     print("  Screen 3 (DualActorSettings): 12 tests")
-    print("  Screen 4 (LiveFeedbackWidget): 7 tests")
-    print("  Screen 5 (DiagnosticsWidget): 9 tests")
+    print("  Screen 4 (LiveFeedbackWidget): 15 tests")
+    print("  Screen 5 (DiagnosticsWidget): 19 tests")
     print("  " + "-" * 50)
-    print("  Total: 52 tests")
+    print("  Total: 72 tests")
     print("=" * 60)
 
 

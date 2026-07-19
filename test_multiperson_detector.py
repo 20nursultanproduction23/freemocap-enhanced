@@ -27,7 +27,9 @@ from multiperson_detector import (
 )
 
 
-TEST_DATA_DIR = r"D:\freemocap_test_data\freemocap_test_data"
+from test_config import TEST_DATA_ROOT
+
+TEST_DATA_DIR = TEST_DATA_ROOT
 VIDEO_DIR = os.path.join(TEST_DATA_DIR, "synchronized_videos")
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_results_stage1.json")
 

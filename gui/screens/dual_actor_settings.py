@@ -4,18 +4,23 @@ Screen 3: DualActorSettings — configuration for two-actor recording.
 Features:
   - Actor count selector (2 now, 3 "Coming soon" disabled)
   - "Physical contact expected" checkbox with warning
+  - "Use ArUco markers" toggle with marker generation section
   - Live indicator: cameras seeing both actors
   - Advanced settings (collapsed): association threshold, tracking threshold, shared floor
   - Restore defaults button
 """
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QCheckBox, QSlider, QSizePolicy, QStackedWidget,
+    QCheckBox, QSlider, QSizePolicy, QStackedWidget, QScrollArea,
+    QFileDialog, QSizePolicy,
 )
 from PySide6.QtCore import Qt, Signal, Property
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QPixmap, QPainter, QPdfWriter, QPageLayout
+from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 
 from gui.i18n.locale_manager import LocaleManager
+
+import os
 
 COLOR_TEXT_PRIMARY = "#ffffff"
 COLOR_TEXT_SECONDARY = "#aaaaaa"
@@ -53,7 +58,7 @@ class DualActorSettings(QWidget):
     DEFAULT_SHARED_FLOOR = True
     DEFAULT_CONTACT_EXPECTED = False
     DEFAULT_ACTOR_COUNT = 2
-    TOTAL_CAMERAS = 6
+    DEFAULT_ARUCO_FALLBACK = False
 
     def __init__(self, locale: LocaleManager, parent=None):
         super().__init__(parent)
@@ -63,7 +68,11 @@ class DualActorSettings(QWidget):
         self._shared_floor = self.DEFAULT_SHARED_FLOOR
         self._contact_expected = self.DEFAULT_CONTACT_EXPECTED
         self._actor_count = self.DEFAULT_ACTOR_COUNT
-        self._cameras_seeing_both = 0
+        self._aruco_fallback_enabled = self.DEFAULT_ARUCO_FALLBACK
+
+        self._marker_pixmaps = {}  # actor_name -> QPixmap for preview
+        self._marker_paths = {}    # actor_name -> filepath after generation
+
         self._advanced_visible = False
         self._setup_ui()
         self._connect_signals()
@@ -78,21 +87,19 @@ class DualActorSettings(QWidget):
             "association_threshold": self._association_threshold,
             "tracking_threshold": self._tracking_threshold,
             "shared_floor": self._shared_floor,
+            "aruco_fallback_enabled": self._aruco_fallback_enabled,
         }
-
-    def set_cameras_seeing_both(self, count: int):
-        """Update the live indicator for how many cameras see both actors."""
-        self._cameras_seeing_both = count
-        self._update_live_indicator()
 
     # ---- UI Setup ----
     def _setup_ui(self):
+        self.setStyleSheet(f"background-color: {COLOR_BG};")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 30, 40, 30)
-        root.setSpacing(16)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
-        # --- Top row: back + title ---
+        # --- Top row: back + title (fixed, outside scroll) ---
         top_row = QHBoxLayout()
+        top_row.setContentsMargins(40, 30, 40, 10)
         top_row.setSpacing(12)
 
         self._back_btn = QPushButton()
@@ -120,6 +127,18 @@ class DualActorSettings(QWidget):
         top_row.addWidget(self._title_label, 1)
         root.addLayout(top_row)
 
+        # --- Scrollable content area ---
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet(f"QScrollArea {{ background-color: {COLOR_BG}; border: none; }}")
+
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet(f"background-color: {COLOR_BG};")
+        content_layout = QVBoxLayout(scroll_content)
+        content_layout.setContentsMargins(40, 10, 40, 10)
+        content_layout.setSpacing(16)
+
         # --- Actor count selector ---
         count_card = self._build_card()
         count_layout = QVBoxLayout(count_card)
@@ -145,14 +164,13 @@ class DualActorSettings(QWidget):
         count_row.addWidget(self._count_2_btn)
         count_row.addWidget(self._count_3_btn)
 
-        # "Coming soon" label for count 3
         self._soon_label = QLabel()
         self._soon_label.setStyleSheet(f"color: {COLOR_TEXT_DISABLED}; font-size: 11px; background: transparent;")
         count_row.addWidget(self._soon_label)
         count_row.addStretch()
 
         count_layout.addLayout(count_row)
-        root.addWidget(count_card)
+        content_layout.addWidget(count_card)
 
         # --- Contact expected checkbox ---
         contact_card = self._build_card()
@@ -188,7 +206,6 @@ class DualActorSettings(QWidget):
         self._contact_desc.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;")
         contact_layout.addWidget(self._contact_desc)
 
-        # Warning label (hidden by default)
         self._contact_warning = QLabel()
         self._contact_warning.setWordWrap(True)
         self._contact_warning.setStyleSheet(f"""
@@ -202,26 +219,146 @@ class DualActorSettings(QWidget):
         self._contact_warning.setVisible(False)
         contact_layout.addWidget(self._contact_warning)
 
-        root.addWidget(contact_card)
+        content_layout.addWidget(contact_card)
 
-        # --- Live indicator ---
-        live_card = self._build_card()
-        live_layout = QVBoxLayout(live_card)
-        live_layout.setContentsMargins(20, 16, 20, 16)
-        live_layout.setSpacing(4)
+        # --- ArUco marker fallback toggle ---
+        aruco_card = self._build_card()
+        aruco_layout = QVBoxLayout(aruco_card)
+        aruco_layout.setContentsMargins(20, 16, 20, 16)
+        aruco_layout.setSpacing(6)
 
-        self._live_label = QLabel()
-        self._live_label.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent;")
-        live_layout.addWidget(self._live_label)
+        self._aruco_cb = QCheckBox()
+        self._aruco_cb.setStyleSheet(f"""
+            QCheckBox {{
+                color: {COLOR_TEXT_PRIMARY};
+                font-size: 14px;
+                spacing: 8px;
+                background: transparent;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {COLOR_BORDER};
+                border-radius: 4px;
+                background: transparent;
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {COLOR_CHECKBOX};
+                border-color: {COLOR_CHECKBOX};
+            }}
+        """)
+        self._aruco_cb.stateChanged.connect(self._on_aruco_changed)
+        aruco_layout.addWidget(self._aruco_cb)
 
-        self._live_bar = QFrame()
-        self._live_bar.setFixedHeight(4)
-        self._live_bar.setStyleSheet(f"background-color: {COLOR_BORDER}; border-radius: 2px;")
-        live_layout.addWidget(self._live_bar)
+        self._aruco_desc = QLabel()
+        self._aruco_desc.setWordWrap(True)
+        self._aruco_desc.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;")
+        aruco_layout.addWidget(self._aruco_desc)
 
-        root.addWidget(live_card)
+        # --- Marker generation section (hidden by default) ---
+        self._marker_container = QWidget()
+        self._marker_container.setVisible(False)
+        marker_layout = QVBoxLayout(self._marker_container)
+        marker_layout.setContentsMargins(0, 8, 0, 0)
+        marker_layout.setSpacing(10)
 
-        # --- Advanced settings (collapsed by default) ---
+        # Generate button
+        self._generate_btn = QPushButton()
+        self._generate_btn.setMinimumHeight(40)
+        self._generate_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._generate_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLOR_BTN_SECONDARY};
+                color: {COLOR_TEXT_PRIMARY};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 13px;
+                padding: 0 20px;
+            }}
+            QPushButton:hover {{
+                border-color: {COLOR_BTN_PRIMARY};
+                color: {COLOR_BTN_PRIMARY};
+            }}
+        """)
+        self._generate_btn.clicked.connect(self._on_generate_markers)
+        marker_layout.addWidget(self._generate_btn)
+
+        # Preview area: two labels side by side
+        preview_row = QHBoxLayout()
+        preview_row.setSpacing(16)
+
+        self._preview_actor0 = self._build_preview_label("actor_0")
+        self._preview_actor1 = self._build_preview_label("actor_1")
+        preview_row.addWidget(self._preview_actor0["container"], 1)
+        preview_row.addWidget(self._preview_actor1["container"], 1)
+        marker_layout.addLayout(preview_row)
+
+        # Download + Print buttons
+        action_row = QHBoxLayout()
+        action_row.setSpacing(10)
+
+        self._download_btn = QPushButton()
+        self._download_btn.setMinimumHeight(36)
+        self._download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._download_btn.setEnabled(False)
+        self._download_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {COLOR_TEXT_SECONDARY};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 12px;
+                padding: 0 16px;
+            }}
+            QPushButton:hover {{
+                border-color: {COLOR_BTN_PRIMARY};
+                color: {COLOR_BTN_PRIMARY};
+            }}
+            QPushButton:disabled {{
+                color: {COLOR_TEXT_DISABLED};
+                border-color: {COLOR_TEXT_DISABLED};
+            }}
+        """)
+        self._download_btn.clicked.connect(self._on_download_markers)
+        action_row.addWidget(self._download_btn)
+
+        self._print_btn = QPushButton()
+        self._print_btn.setMinimumHeight(36)
+        self._print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._print_btn.setEnabled(False)
+        self._print_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {COLOR_TEXT_SECONDARY};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 12px;
+                padding: 0 16px;
+            }}
+            QPushButton:hover {{
+                border-color: {COLOR_BTN_PRIMARY};
+                color: {COLOR_BTN_PRIMARY};
+            }}
+            QPushButton:disabled {{
+                color: {COLOR_TEXT_DISABLED};
+                border-color: {COLOR_TEXT_DISABLED};
+            }}
+        """)
+        self._print_btn.clicked.connect(self._on_print_markers)
+        action_row.addWidget(self._print_btn)
+
+        marker_layout.addLayout(action_row)
+
+        self._download_notification = QLabel()
+        self._download_notification.setStyleSheet(f"color: #4caf50; font-size: 12px; background: transparent;")
+        self._download_notification.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._download_notification.setVisible(False)
+        marker_layout.addWidget(self._download_notification)
+
+        aruco_layout.addWidget(self._marker_container)
+        content_layout.addWidget(aruco_card)
+
+        # --- Advanced settings toggle ---
         self._advanced_toggle = QPushButton()
         self._advanced_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         self._advanced_toggle.setStyleSheet(f"""
@@ -238,8 +375,9 @@ class DualActorSettings(QWidget):
             }}
         """)
         self._advanced_toggle.clicked.connect(self._toggle_advanced)
-        root.addWidget(self._advanced_toggle)
+        content_layout.addWidget(self._advanced_toggle)
 
+        # --- Advanced settings container (collapsed) ---
         self._advanced_container = QWidget()
         self._advanced_container.setVisible(False)
         adv_layout = QVBoxLayout(self._advanced_container)
@@ -379,7 +517,7 @@ class DualActorSettings(QWidget):
 
         adv_layout.addWidget(floor_card)
 
-        root.addWidget(self._advanced_container)
+        content_layout.addWidget(self._advanced_container)
 
         # --- Restore defaults ---
         self._restore_btn = QPushButton()
@@ -399,11 +537,19 @@ class DualActorSettings(QWidget):
             }}
         """)
         self._restore_btn.clicked.connect(self._restore_defaults)
-        root.addWidget(self._restore_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+        content_layout.addWidget(self._restore_btn, alignment=Qt.AlignmentFlag.AlignLeft)
 
-        root.addStretch(1)
+        content_layout.addStretch(1)
 
-        # --- Bottom: Continue button ---
+        scroll_area.setWidget(scroll_content)
+        root.addWidget(scroll_area, 1)
+
+        # --- Bottom: Continue button (fixed, outside scroll) ---
+        btn_bar = QWidget()
+        btn_bar.setStyleSheet("background: transparent;")
+        btn_layout = QHBoxLayout(btn_bar)
+        btn_layout.setContentsMargins(40, 10, 40, 20)
+
         self._continue_btn = QPushButton()
         self._continue_btn.setMinimumHeight(48)
         self._continue_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -422,7 +568,9 @@ class DualActorSettings(QWidget):
             }}
         """)
         self._continue_btn.clicked.connect(self.continue_clicked.emit)
-        root.addWidget(self._continue_btn)
+        btn_layout.addWidget(self._continue_btn)
+
+        root.addWidget(btn_bar)
 
     # ---- Helper ----
     def _build_card(self) -> QFrame:
@@ -435,6 +583,35 @@ class DualActorSettings(QWidget):
             }}
         """)
         return card
+
+    def _build_preview_label(self, actor_name: str) -> dict:
+        """Build a preview widget for one actor's marker."""
+        container = QFrame()
+        container.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLOR_CARD_BG};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 6px;
+            }}
+        """)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(4)
+
+        image_label = QLabel()
+        image_label.setFixedSize(180, 180)
+        image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        image_label.setStyleSheet(f"background: {COLOR_BG}; border-radius: 4px;")
+        image_label.setText("---")
+        layout.addWidget(image_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        info_label = QLabel()
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        info_label.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
+        info_label.setText(actor_name)
+        layout.addWidget(info_label)
+
+        return {"container": container, "image": image_label, "info": info_label}
 
     # ---- Signals ----
     def _connect_signals(self):
@@ -474,14 +651,103 @@ class DualActorSettings(QWidget):
         self._shared_floor = self.DEFAULT_SHARED_FLOOR
         self._contact_expected = self.DEFAULT_CONTACT_EXPECTED
         self._actor_count = self.DEFAULT_ACTOR_COUNT
+        self._aruco_fallback_enabled = self.DEFAULT_ARUCO_FALLBACK
 
         self._assoc_slider.setValue(int(self._association_threshold * 100))
         self._track_slider.setValue(int(self._tracking_threshold * 100))
         self._floor_cb.setChecked(self._shared_floor)
         self._contact_cb.setChecked(self._contact_expected)
         self._contact_warning.setVisible(False)
+        self._aruco_cb.setChecked(self._aruco_fallback_enabled)
+        self._marker_container.setVisible(False)
         self._update_count_style()
         self.settings_changed.emit(self.settings)
+
+    # ---- ArUco marker handlers ----
+    def _on_aruco_changed(self, state: int):
+        self._aruco_fallback_enabled = state == Qt.CheckState.Checked.value
+        self._marker_container.setVisible(self._aruco_fallback_enabled)
+        self.settings_changed.emit(self.settings)
+
+    def _on_generate_markers(self):
+        """Generate ArUco markers and show previews."""
+        try:
+            from tools.generate_actor_markers import generate_all_markers, load_config
+
+            config_path = os.path.join(
+                os.path.dirname(__file__), "..", "..", "tools", "actor_marker_map.yaml"
+            )
+            config = load_config(config_path)
+
+            output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "markers")
+            generated = generate_all_markers(config, output_dir)
+
+            for actor_name, info in generated.items():
+                filepath = info["filepath"]
+                self._marker_paths[actor_name] = filepath
+
+                pixmap = QPixmap(filepath)
+                if not pixmap.isNull():
+                    scaled = pixmap.scaled(
+                        160, 160,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+
+                    widget_info = self._preview_actor0 if actor_name == "actor_0" else self._preview_actor1
+                    widget_info["image"].setPixmap(scaled)
+                    widget_info["image"].setText("")
+                    widget_info["info"].setText(
+                        f"{actor_name}\nID: {info['marker_id']}  |  {info['size_mm']}mm"
+                    )
+
+            self._download_btn.setEnabled(True)
+            self._print_btn.setEnabled(True)
+
+        except Exception as e:
+            pass
+
+    def _on_download_markers(self):
+        """Save marker PNGs to user's Downloads folder."""
+        try:
+            from PySide6.QtCore import QTimer
+            downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+            for actor_name, filepath in self._marker_paths.items():
+                if os.path.exists(filepath):
+                    dest = os.path.join(downloads, os.path.basename(filepath))
+                    import shutil
+                    shutil.copy2(filepath, dest)
+            self._download_notification.setText(self._locale.t("aruco_download_saved"))
+            self._download_notification.setVisible(True)
+            QTimer.singleShot(3000, lambda: self._download_notification.setVisible(False))
+        except Exception:
+            pass
+
+    def _on_print_markers(self):
+        """Open system print dialog with the first marker image."""
+        if not self._marker_paths:
+            return
+
+        first_path = next(iter(self._marker_paths.values()))
+        if not os.path.exists(first_path):
+            return
+
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        dialog = QPrintDialog(printer)
+        if dialog.exec() == QPrintDialog.DialogCode.Accepted:
+            pixmap = QPixmap(first_path)
+            if not pixmap.isNull():
+                painter = QPainter(printer)
+                rect = printer.pageRect(QPrinter.Unit.DevicePixel)
+                scaled = pixmap.scaled(
+                    rect.width(), rect.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                x = (rect.width() - scaled.width()) / 2
+                y = (rect.height() - scaled.height()) / 2
+                painter.drawPixmap(int(x), int(y), scaled)
+                painter.end()
 
     # ---- UI Updates ----
     def _update_count_style(self):
@@ -513,21 +779,6 @@ class DualActorSettings(QWidget):
                     }}
                 """)
 
-    def _update_live_indicator(self):
-        t = self._locale.t
-        self._live_label.setText(t("live_indicator_label",
-                                  seen=self._cameras_seeing_both,
-                                  total=self.TOTAL_CAMERAS))
-        # Update bar color
-        ratio = self._cameras_seeing_both / self.TOTAL_CAMERAS
-        if ratio >= 0.67:
-            bar_color = "#4caf50"  # green
-        elif ratio >= 0.33:
-            bar_color = COLOR_WARNING
-        else:
-            bar_color = "#f44336"  # red
-        self._live_bar.setStyleSheet(f"background-color: {bar_color}; border-radius: 2px;")
-
     def _refresh_text(self):
         t = self._locale.t
         self._title_label.setText(t("dual_actor_settings_title"))
@@ -537,7 +788,6 @@ class DualActorSettings(QWidget):
         self._contact_cb.setText(t("contact_expected_label"))
         self._contact_desc.setText(t("contact_expected_desc"))
         self._contact_warning.setText(t("contact_expected_warning"))
-        self._update_live_indicator()
 
         # Advanced toggle
         toggle_key = "advanced_settings_hide" if self._advanced_visible else "advanced_settings_show"
@@ -558,6 +808,13 @@ class DualActorSettings(QWidget):
         # Shared floor
         self._floor_cb.setText(t("shared_floor_label"))
         self._floor_desc.setText(t("shared_floor_desc"))
+
+        # ArUco fallback
+        self._aruco_cb.setText(t("aruco_fallback_label"))
+        self._aruco_desc.setText(t("aruco_fallback_desc"))
+        self._generate_btn.setText(t("aruco_generate_btn"))
+        self._download_btn.setText(t("aruco_download_btn"))
+        self._print_btn.setText(t("aruco_print_btn"))
 
         self._restore_btn.setText(t("btn_restore_defaults"))
         self._continue_btn.setText(t("btn_record"))

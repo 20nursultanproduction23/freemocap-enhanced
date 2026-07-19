@@ -91,6 +91,15 @@ def compute_bone_lengths(skeleton_data):
     return bone_lengths
 
 
+# ── Marker detection output format (Stage 7, Part B) ──────────────────
+# Output format for ArUco marker detection (per frame per camera):
+#   {"marker_id": int, "corners": [...], "center_2d": [...], "detection_confidence": float}
+# Implemented as MarkerDetection dataclass in marker_fallback.py
+
+MARKER_DETECTION_KEYS = ["marker_id", "corners", "center_2d", "detection_confidence"]
+MARKER_SKELETON_BIND_THRESHOLD_PX = 120.0
+
+
 def compute_foot_center(skeleton_data, foot_markers):
     """Compute center of foot markers.
     

@@ -1,0 +1,5 @@
+dictionary: DICT_4X4_50
+marker_size_mm: 50
+actors:
+  actor_0: 0
+  actor_1: 1
