@@ -45,6 +45,9 @@ requirements_full.txt
 *.swp
 *.swo
 
+# Office temp files
+~$*
+
 # OS
 Thumbs.db
 .DS_Store
