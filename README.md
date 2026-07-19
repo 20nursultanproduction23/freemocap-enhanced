@@ -63,14 +63,6 @@ This project was developed and tested primarily using:
 - The GUI might have rough edges in dual-actor mode that tests didn't catch
 - Floor plane estimation might need calibration tuning with real camera setups
 
-### What I Know Works
-
-- FreeMoCap Enhanced launches and shows the enhanced welcome screen
-- Single-person post-processing pipeline (jitter filter, bone enforcement, foot sliding, etc.)
-- ArUco marker generation
-- All 102 automated tests pass
-- Bilingual UI (EN/RU) with language toggle
-
 ### What Happens Next
 
 **When my cameras arrive (expected soon):**
