@@ -123,11 +123,22 @@ class BoneLengthSolver:
             Reference length for each bone, shape ``(num_bones,)``.
         """
         num_frames = skeleton_3d.shape[0]
+        num_keypoints = skeleton_3d.shape[1]
         n_ref = (
             num_frames
             if self.reference_frames is None
             else min(self.reference_frames, num_frames)
         )
+
+        # Filter bones to only those within keypoint range
+        valid_bones = [
+            (child, parent) for child, parent in self.bones
+            if child < num_keypoints and parent < num_keypoints
+        ]
+        if len(valid_bones) == 0:
+            self._reference_lengths = np.array([])
+            return np.array([])
+        self._bones = valid_bones
 
         bone_lengths = self._compute_all_bone_lengths(skeleton_3d[:n_ref])
 
@@ -155,7 +166,10 @@ class BoneLengthSolver:
         if self._reference_lengths is None:
             self.fit_reference(skeleton_3d)
 
+        bones = getattr(self, '_bones', self.bones)
         ref_lengths = self._reference_lengths.copy()
+        if len(ref_lengths) == 0 or len(bones) == 0:
+            return skeleton_3d, {"num_corrections": 0, "corrections_per_frame": [0] * skeleton_3d.shape[0]}
         num_frames = skeleton_3d.shape[0]
         corrections_per_frame = [0] * num_frames
 
@@ -163,7 +177,7 @@ class BoneLengthSolver:
             for frame_idx in range(num_frames):
                 frame = skeleton_3d[frame_idx]
                 count = 0
-                for bone_idx, (child, parent) in enumerate(self.bones):
+                for bone_idx, (child, parent) in enumerate(bones):
                     if child == 0 or parent == 0:
                         # Never move the root joint
                         pass
@@ -215,10 +229,11 @@ class BoneLengthSolver:
             Shape ``(num_frames, num_bones)``.
         """
         num_frames = skeleton_3d.shape[0]
-        num_bones = len(self.bones)
+        bones = getattr(self, '_bones', self.bones)
+        num_bones = len(bones)
         lengths = np.full((num_frames, num_bones), np.nan, dtype=np.float64)
 
-        for bone_idx, (child, parent) in enumerate(self.bones):
+        for bone_idx, (child, parent) in enumerate(bones):
             p = skeleton_3d[:, parent, :]  # (F, 3)
             c = skeleton_3d[:, child, :]   # (F, 3)
             valid = ~(np.any(np.isnan(p), axis=1) | np.any(np.isnan(c), axis=1))

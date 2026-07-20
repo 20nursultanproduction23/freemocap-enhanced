@@ -33,11 +33,21 @@ def check_wrist_consistency(skeleton_data, max_mismatch_mm=50.0):
     """
     diagnostics = {}
 
+    num_keypoints = skeleton_data.shape[1]
+    has_hands = num_keypoints > NUM_BODY
+
     for side, body_idx, hand_base_idx in [
         ("right", BODY_RIGHT_WRIST_IDX, RH_BASE_IDX),
         ("left", BODY_LEFT_WRIST_IDX, LH_BASE_IDX),
     ]:
         body_wrist = skeleton_data[:, body_idx, :]
+        if not has_hands:
+            diagnostics[side] = {
+                "mean_mismatch_mm": 0, "max_mismatch_mm": 0,
+                "median_mismatch_mm": 0, "flagged_frames": 0,
+                "p95_mismatch_mm": 0, "status": "no_hand_data",
+            }
+            continue
         hand_base = skeleton_data[:, hand_base_idx, :]
 
         valid = ~np.isnan(body_wrist).any(axis=1) & ~np.isnan(hand_base).any(axis=1)
@@ -147,6 +157,10 @@ def fix_wrist_consistency(skeleton_data, strategy="confidence_weighted", dissolv
     """
     fixed = skeleton_data.copy()
     fix_info = {"right_fixes": 0, "left_fixes": 0}
+
+    num_keypoints = skeleton_data.shape[1]
+    if num_keypoints <= NUM_BODY:
+        return fixed, fix_info
 
     for side, body_idx, hand_base_idx in [
         ("right", BODY_RIGHT_WRIST_IDX, RH_BASE_IDX),
